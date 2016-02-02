@@ -5,3 +5,8 @@
 *.bz2
 *.dmg
 *.zip
+/_build
+/cover
+/deps
+erl_crash.dump
+*.ez

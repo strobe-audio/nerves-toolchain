@@ -16,35 +16,37 @@ if [ $HOST_OS = "CYGWIN_NT-6.1" ]; then
 fi
 HOST_OS=$(echo "$HOST_OS" | awk '{print tolower($0)}')
 
-if [ $# -lt 1 ]; then
-    echo "Usage: $0 <config fragment>"
-    echo
-    echo "This is the Nerves toolchain builder. It produces cross-compilers that"
-    echo "work across the operating systems supported by Nerves."
-    echo
-    echo "By convention, configurations are identified by <host>-<libc>-<arch/abi>."
-    echo "The following are some examples (look in the configs directory for details):"
-    echo
-    echo "linux-glibc-eabihf.config  -> Linux host, ARM target with glibc, hardware float"
-    echo "darwin-glibc-eabihf.config -> Mac host, ARM target with glibc, hardware float"
-    echo
-    echo "Pass the <libc>-<arch/abi> part for the first parameter."
-    echo
-    echo "Valid options for this platform:"
-    for config in $(ls configs); do
-        case $config in
-            $HOST_OS-*)
-                CONFIG_FRAGMENT=$(basename $config .config | sed -e "s/$HOST_OS-//")
-                echo "  $0 $CONFIG_FRAGMENT"
-                ;;
-            *)
-        esac
-    done
-    exit 1
-fi
+# if [ $# -lt 1 ]; then
+#     echo "Usage: $0 <config fragment>"
+#     echo
+#     echo "This is the Nerves toolchain builder. It produces cross-compilers that"
+#     echo "work across the operating systems supported by Nerves."
+#     echo
+#     echo "By convention, configurations are identified by <host>-<libc>-<arch/abi>."
+#     echo "The following are some examples (look in the configs directory for details):"
+#     echo
+#     echo "linux-glibc-eabihf.config  -> Linux host, ARM target with glibc, hardware float"
+#     echo "darwin-glibc-eabihf.config -> Mac host, ARM target with glibc, hardware float"
+#     echo
+#     echo "Pass the <libc>-<arch/abi> part for the first parameter."
+#     echo
+#     echo "Valid options for this platform:"
+#     for config in $(ls configs); do
+#         case $config in
+#             $HOST_OS-*)
+#                 CONFIG_FRAGMENT=$(basename $config .config | sed -e "s/$HOST_OS-//")
+#                 echo "  $0 $CONFIG_FRAGMENT"
+#                 ;;
+#             *)
+#         esac
+#     done
+#     exit 1
+# fi
 
-CONFIG=$HOST_OS-$1
-CTNG_CONFIG=$BASE_DIR/configs/$CONFIG.config
+# CONFIG=$HOST_OS-$1
+# CTNG_CONFIG=$BASE_DIR/configs/$CONFIG.config
+CTNG_CONFIG=$1
+
 
 if [[ ! -e $CTNG_CONFIG ]]; then
     echo "Can't find $CTNG_CONFIG. Check that it exists."
@@ -54,7 +56,7 @@ fi
 WORK_DIR=$BASE_DIR/work-$CONFIG
 DL_DIR=$BASE_DIR/dl
 
-NERVES_TOOLCHAIN_TAG=$(git describe --always --dirty)
+#NERVES_TOOLCHAIN_TAG=$(git describe --always --dirty)
 
 # Programs used for building the toolchain, but not for distributing (e.g. ct-ng)
 LOCAL_INSTALL_DIR=$WORK_DIR/usr
