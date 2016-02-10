@@ -192,7 +192,7 @@ assemble_tarball()
 
     # Assemble the tarball for the toolchain
     TARGET_TUPLE=$(gcc_tuple)
-    TARBALL_PATH=$BASE_DIR/$(toolchain_base_name).tar
+    TARBALL_PATH=$BASE_DIR/toolchain.tar
     TARXZ_PATH=$TARBALL_PATH.xz
     TOOLCHAIN_BASE_NAME=$(toolchain_base_name)
     echo "$NERVES_TOOLCHAIN_TAG" > $GCC_INSTALL_DIR/$TARGET_TUPLE/nerves-toolchain.tag

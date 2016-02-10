@@ -12,7 +12,7 @@ defmodule Mix.Tasks.Compile.NervesToolchain do
   def run(args) do
     config = Mix.Project.config
     toolchain = config[:app]
-
+    IO.puts toolchain
     {:ok, _} = Application.ensure_all_started(:nerves_toolchain)
     {:ok, _} = Application.ensure_all_started(toolchain)
 
@@ -50,6 +50,7 @@ defmodule Mix.Tasks.Compile.NervesToolchain do
         end
       build(toolchain_tar, target_tuple, config)
     end
+    Mix.shell.info "==> Update environment for toolchain"
     System.put_env("NERVES_TOOLCHAIN", target)
   end
 
@@ -63,7 +64,7 @@ defmodule Mix.Tasks.Compile.NervesToolchain do
     end
   end
 
-  defp cache(_), do: {:error, :nocache}
+  defp cache(_, _), do: {:error, :nocache}
 
   defp cache_response(%{data: %{host: host, path: path}}) do
     case Bake.Api.request(:get, "#{host}/#{path}", []) do
@@ -92,12 +93,16 @@ defmodule Mix.Tasks.Compile.NervesToolchain do
     toolchain_src = toolchain_src <> "/src"
     ctng_config = File.cwd! <> "/src/#{host_platform}.config"
 
-    System.cmd("sh", ["build.sh", ctng_config], stderr_to_stdout: true, cd: toolchain_src, into: IO.stream(:stdio, :line))
+    result = System.cmd("sh", ["build.sh", ctng_config], stderr_to_stdout: true, cd: toolchain_src, into: IO.stream(:stdio, :line))
+    case result do
+      {_, 0} -> File.read!(toolchain_src <> "/toolchain.tar.xz")
+      {error, _} -> raise "Error compiling toolchain: #{inspect error}"
+    end
   end
 
   defp build(toolchain_tar, target_tuple, config) do
     tar_dir = config[:app_path]
-    tar_file = tar_dir <> "/toolchain.tar.gz"
+    tar_file = tar_dir <> "/toolchain.tar.xz"
     write_result = File.write(tar_file, toolchain_tar)
     System.cmd("tar", ["xf", tar_file], cd: tar_dir)
     File.rm!(tar_file)
