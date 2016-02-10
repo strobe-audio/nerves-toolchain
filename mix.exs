@@ -14,7 +14,7 @@ defmodule NervesToolchain.Mixfile do
 
   defp deps do
     [
-      {:bake, path: "../../../bakeware/bake"},
+      {:bake, github: "bakeware/bake"},
     ]
   end
 end
