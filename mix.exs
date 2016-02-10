@@ -14,7 +14,7 @@ defmodule NervesToolchain.Mixfile do
 
   defp deps do
     [
-      {:bake, github: "bakeware/bake"},
+      {:httpoison, "~> 0.8"}
     ]
   end
 end

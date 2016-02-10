@@ -10,9 +10,9 @@ defmodule Mix.Tasks.Compile.NervesToolchain do
   @recursive true
 
   def run(args) do
+    Mix.shell.info "Compile Nerves toolchain"
     config = Mix.Project.config
     toolchain = config[:app]
-    IO.puts toolchain
     {:ok, _} = Application.ensure_all_started(:nerves_toolchain)
     {:ok, _} = Application.ensure_all_started(toolchain)
 
@@ -24,19 +24,19 @@ defmodule Mix.Tasks.Compile.NervesToolchain do
     nerves_toolchain_config = Application.get_all_env(:nerves_toolchain)
     |> Enum.into(%{})
 
-    cache       = nerves_toolchain_config[:cache]
-    compiler    = nerves_toolchain_config[:compiler] || :local
+    cache       = nerves_toolchain_config[:cache] || :github
     app_path    = Mix.Project.app_path(config)
+    params      = %{target_tuple: target_tuple, version: config[:version], app_path: app_path}
 
     if stale?(app_path) do
-      toolchain_tar =
-        case cache(cache, %{tuple: target_tuple, username: "nerves", version: config[:version]}) do
-          {:ok, toolchain_tar} -> toolchain_tar
-          _ -> compile(compiler, target_tuple: target_tuple)
-        end
-      build(toolchain_tar, target_tuple, config)
+      toolchain   = cache(cache, params)
+      toolchain
+      |> copy_build(params)
+    else
+      Mix.shell.info "Nerves toolchain up to date"
     end
-    Mix.shell.info "==> Update environment for toolchain"
+
+    Mix.shell.info "Update environment for toolchain"
     System.put_env("NERVES_TOOLCHAIN", app_path)
   end
 
@@ -55,33 +55,27 @@ defmodule Mix.Tasks.Compile.NervesToolchain do
     end
   end
 
+  defp cache(:github, params) do
+    Mix.shell.info "Downloading from Github Cache"
+    Application.ensure_all_started(:httpoison)
 
-  defp cache(:bakeware, params) do
-    Application.ensure_all_started(:bake)
-    Mix.shell.info "==> Checking Bakeware Cache"
-    case Bake.Api.Toolchain.get(params) do
-      {:ok, %{status_code: code, body: body} = resp} when code in 200..299 ->
-        cache_response(Poison.decode!(body, keys: :atoms))
-      {_, result} -> {:error, result}
+    url = "https://github.com/nerves-project/nerves-toolchain/releases/download/v#{params.version}/nerves-#{params.target_tuple}-#{host_platform}-#{host_arch}-v#{params.version}.tar.xz"
+    case HTTPoison.get(url, [], follow_redirect: true) do
+      {:ok, %{status_code: code, body: body}} when code in 200..299 -> body
+      {_, error} ->
+        raise "Nerves Toolchain Github cache returned error: #{inspect error}"
     end
   end
 
-  defp cache(_, _), do: {:error, :nocache}
-
-  defp cache_response(%{data: %{host: host, path: path}}) do
-    case Bake.Api.request(:get, "#{host}/#{path}", []) do
-      {:ok, %{status_code: code, body: body}} when code in 200..299 ->
-        Mix.shell.info "==> Using Bakeware Cache"
-        {:ok, body}
-      {_, result} -> {:error, result}
-    end
+  defp cache(:none, params) do
+    compile(params)
   end
 
-  defp compile(:local, params) do
-    Mix.shell.info "==> Starting Nerves Toolchain Build"
-    Mix.shell.info "      Host Platform: #{host_platform}"
-    Mix.shell.info "      Host Arch: #{host_arch}"
-    Mix.shell.info "      Target Tuple: #{params[:target_tuple]}"
+  defp compile(params) do
+    Mix.shell.info "Starting Nerves Toolchain Build"
+    Mix.shell.info "  Host Platform: #{host_platform}"
+    Mix.shell.info "  Host Arch: #{host_arch}"
+    Mix.shell.info "  Target Tuple: #{params[:target_tuple]}"
 
     nerves_toolchain = Mix.Dep.loaded([])
     |> Enum.find(fn
@@ -102,15 +96,15 @@ defmodule Mix.Tasks.Compile.NervesToolchain do
     end
   end
 
-  defp build(toolchain_tar, target_tuple, config) do
-    tar_dir = config[:app_path]
+  defp copy_build(toolchain_tar, params) do
+    Mix.shell.info "Unpacking toolchain to build dir"
+    tar_dir = params.app_path
     tar_file = tar_dir <> "/toolchain.tar.xz"
     write_result = File.write(tar_file, toolchain_tar)
     System.cmd("tar", ["xf", tar_file], cd: tar_dir)
     File.rm!(tar_file)
-    toolchain_dir = Enum.find(File.ls!(tar_dir), &(String.contains?(&1, target_tuple)))
+    toolchain_dir = Enum.find(File.ls!(tar_dir), &(String.contains?(&1, params.target_tuple)))
     target = Path.join(tar_dir, "toolchain")
-    File.rm_rf!(target)
     rename = File.rename(Path.join(tar_dir, toolchain_dir), target)
     File.touch(target)
   end
