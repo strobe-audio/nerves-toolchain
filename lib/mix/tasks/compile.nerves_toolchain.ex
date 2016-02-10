@@ -8,9 +8,13 @@ defmodule Mix.Tasks.Compile.NervesToolchain do
   """
 
   @recursive true
+  @switches [cache: :string]
+  @recv_timeout 120_000
 
   def run(args) do
     Mix.shell.info "Compile Nerves toolchain"
+
+    {opts, _, _} = OptionParser.parse(args, switches: @switches)
     config = Mix.Project.config
     toolchain = config[:app]
     {:ok, _} = Application.ensure_all_started(:nerves_toolchain)
@@ -24,7 +28,8 @@ defmodule Mix.Tasks.Compile.NervesToolchain do
     nerves_toolchain_config = Application.get_all_env(:nerves_toolchain)
     |> Enum.into(%{})
 
-    cache       = nerves_toolchain_config[:cache] || :github
+    cache       = opts[:cache] || nerves_toolchain_config[:cache] || :github
+    cache       = if is_binary(cache), do: String.to_atom(cache), else: cache
     app_path    = Mix.Project.app_path(config)
     params      = %{target_tuple: target_tuple, version: config[:version], app_path: app_path}
 
@@ -60,7 +65,7 @@ defmodule Mix.Tasks.Compile.NervesToolchain do
     Application.ensure_all_started(:httpoison)
 
     url = "https://github.com/nerves-project/nerves-toolchain/releases/download/v#{params.version}/nerves-#{params.target_tuple}-#{host_platform}-#{host_arch}-v#{params.version}.tar.xz"
-    case HTTPoison.get(url, [], follow_redirect: true) do
+    case HTTPoison.get(url, [], follow_redirect: true, recv_timeout: @recv_timeout) do
       {:ok, %{status_code: code, body: body}} when code in 200..299 -> body
       {_, error} ->
         raise "Nerves Toolchain Github cache returned error: #{inspect error}"
