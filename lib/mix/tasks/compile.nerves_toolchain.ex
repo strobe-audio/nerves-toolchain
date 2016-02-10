@@ -24,25 +24,11 @@ defmodule Mix.Tasks.Compile.NervesToolchain do
     nerves_toolchain_config = Application.get_all_env(:nerves_toolchain)
     |> Enum.into(%{})
 
-    cache     = nerves_toolchain_config[:cache]
-    compiler  = nerves_toolchain_config[:compiler] || :local
+    cache       = nerves_toolchain_config[:cache]
+    compiler    = nerves_toolchain_config[:compiler] || :local
+    app_path    = Mix.Project.app_path(config)
 
-    target = config[:app_path]
-    |> Path.join("toolchain")
-
-    stale =
-      if (File.dir?(target)) do
-        src =  Path.join(File.cwd!, "src")
-        sources = src
-        |> File.ls!
-        |> Enum.map(& Path.join(src, &1))
-
-        Mix.Utils.stale?(sources, [target])
-      else
-        true
-      end
-    if stale do
-      Mix.shell.info "==> Compile Nerves Toolchain"
+    if stale?(app_path) do
       toolchain_tar =
         case cache(cache, %{tuple: target_tuple, username: "nerves", version: config[:version]}) do
           {:ok, toolchain_tar} -> toolchain_tar
@@ -51,8 +37,24 @@ defmodule Mix.Tasks.Compile.NervesToolchain do
       build(toolchain_tar, target_tuple, config)
     end
     Mix.shell.info "==> Update environment for toolchain"
-    System.put_env("NERVES_TOOLCHAIN", target)
+    System.put_env("NERVES_TOOLCHAIN", app_path)
   end
+
+  defp stale?(app_path) do
+    app_path = app_path
+    |> Path.join("toolchain")
+    if (File.dir?(app_path)) do
+      src =  Path.join(File.cwd!, "src")
+      sources = src
+      |> File.ls!
+      |> Enum.map(& Path.join(src, &1))
+
+      Mix.Utils.stale?(sources, [app_path])
+    else
+      true
+    end
+  end
+
 
   defp cache(:bakeware, params) do
     Application.ensure_all_started(:bake)
