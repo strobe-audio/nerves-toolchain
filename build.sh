@@ -3,8 +3,8 @@
 set -e
 
 # Set CTNG_USE_GIT=true to use git to download the release (only needed for non-released ct-ng builds)
-CTNG_USE_GIT=false
-CTNG_TAG=1.22.0
+CTNG_USE_GIT=true
+CTNG_TAG=a41b269af6001e47df0c6f42cad13e32526b22cb
 
 BASE_DIR=$(pwd)
 
